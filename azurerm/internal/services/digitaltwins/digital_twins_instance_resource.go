@@ -68,7 +68,7 @@ func resourceDigitalTwinsInstanceCreate(d *schema.ResourceData, meta interface{}
 	name := d.Get("name").(string)
 	resourceGroup := d.Get("resource_group_name").(string)
 
-	id := parse.NewDigitalTwinsInstanceID(subscriptionId, resourceGroup, name).ID("")
+	id := parse.NewDigitalTwinsInstanceID(subscriptionId, resourceGroup, name).ID()
 
 	existing, err := client.Get(ctx, resourceGroup, name)
 	if err != nil {
@@ -94,8 +94,7 @@ func resourceDigitalTwinsInstanceCreate(d *schema.ResourceData, meta interface{}
 		return fmt.Errorf("waiting for creation of the Digital Twins Instance %q (Resource Group %q): %+v", name, resourceGroup, err)
 	}
 
-	_, err = client.Get(ctx, resourceGroup, name)
-	if err != nil {
+	if _, err = client.Get(ctx, resourceGroup, name); err != nil {
 		return fmt.Errorf("retrieving Digital Twins Instance %q (Resource Group %q): %+v", name, resourceGroup, err)
 	}
 

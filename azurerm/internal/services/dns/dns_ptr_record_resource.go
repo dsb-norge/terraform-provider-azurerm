@@ -17,12 +17,12 @@ import (
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
 )
 
-func resourceArmDnsPtrRecord() *schema.Resource {
+func resourceDnsPtrRecord() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceArmDnsPtrRecordCreateUpdate,
-		Read:   resourceArmDnsPtrRecordRead,
-		Update: resourceArmDnsPtrRecordCreateUpdate,
-		Delete: resourceArmDnsPtrRecordDelete,
+		Create: resourceDnsPtrRecordCreateUpdate,
+		Read:   resourceDnsPtrRecordRead,
+		Update: resourceDnsPtrRecordCreateUpdate,
+		Delete: resourceDnsPtrRecordDelete,
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(30 * time.Minute),
@@ -71,14 +71,17 @@ func resourceArmDnsPtrRecord() *schema.Resource {
 	}
 }
 
-func resourceArmDnsPtrRecordCreateUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceDnsPtrRecordCreateUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Dns.RecordSetsClient
 	ctx, cancel := timeouts.ForCreateUpdate(meta.(*clients.Client).StopContext, d)
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	defer cancel()
 
 	name := d.Get("name").(string)
 	resGroup := d.Get("resource_group_name").(string)
 	zoneName := d.Get("zone_name").(string)
+
+	resourceId := parse.NewPtrRecordID(subscriptionId, resGroup, zoneName, name)
 
 	if d.IsNewResource() {
 		existing, err := client.Get(ctx, resGroup, zoneName, name, dns.PTR)
@@ -110,21 +113,12 @@ func resourceArmDnsPtrRecordCreateUpdate(d *schema.ResourceData, meta interface{
 		return fmt.Errorf("Error creating/updating DNS PTR Record %q (Zone %q / Resource Group %q): %s", name, zoneName, resGroup, err)
 	}
 
-	resp, err := client.Get(ctx, resGroup, zoneName, name, dns.PTR)
-	if err != nil {
-		return fmt.Errorf("Error retrieving DNS PTR Record %q (Zone %q / Resource Group %q): %s", name, zoneName, resGroup, err)
-	}
+	d.SetId(resourceId.ID())
 
-	if resp.ID == nil {
-		return fmt.Errorf("Cannot read DNS PTR Record %s (resource group %s) ID", name, resGroup)
-	}
-
-	d.SetId(*resp.ID)
-
-	return resourceArmDnsPtrRecordRead(d, meta)
+	return resourceDnsPtrRecordRead(d, meta)
 }
 
-func resourceArmDnsPtrRecordRead(d *schema.ResourceData, meta interface{}) error {
+func resourceDnsPtrRecordRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client)
 	dnsClient := client.Dns.RecordSetsClient
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
@@ -157,7 +151,7 @@ func resourceArmDnsPtrRecordRead(d *schema.ResourceData, meta interface{}) error
 	return tags.FlattenAndSet(d, resp.Metadata)
 }
 
-func resourceArmDnsPtrRecordDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceDnsPtrRecordDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client)
 	dnsClient := client.Dns.RecordSetsClient
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)

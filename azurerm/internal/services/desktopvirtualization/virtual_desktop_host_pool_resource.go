@@ -99,6 +99,11 @@ func resourceVirtualDesktopHostPool() *schema.Resource {
 				Default:  false,
 			},
 
+			"custom_rdp_properties": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+
 			"personal_desktop_assignment_type": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -171,7 +176,7 @@ func resourceVirtualDesktopHostPoolCreateUpdate(d *schema.ResourceData, meta int
 	name := d.Get("name").(string)
 	resourceGroup := d.Get("resource_group_name").(string)
 
-	resourceId := parse.NewHostPoolID(subscriptionId, resourceGroup, name).ID("")
+	resourceId := parse.NewHostPoolID(subscriptionId, resourceGroup, name).ID()
 	if d.IsNewResource() {
 		existing, err := client.Get(ctx, resourceGroup, name)
 		if err != nil {
@@ -196,6 +201,7 @@ func resourceVirtualDesktopHostPoolCreateUpdate(d *schema.ResourceData, meta int
 			FriendlyName:                  utils.String(d.Get("friendly_name").(string)),
 			Description:                   utils.String(d.Get("description").(string)),
 			ValidationEnvironment:         utils.Bool(d.Get("validate_environment").(bool)),
+			CustomRdpProperty:             utils.String(d.Get("custom_rdp_properties").(string)),
 			MaxSessionLimit:               utils.Int32(int32(d.Get("maximum_sessions_allowed").(int))),
 			LoadBalancerType:              desktopvirtualization.LoadBalancerType(d.Get("load_balancer_type").(string)),
 			PersonalDesktopAssignmentType: desktopvirtualization.PersonalDesktopAssignmentType(d.Get("personal_desktop_assignment_type").(string)),
@@ -254,6 +260,7 @@ func resourceVirtualDesktopHostPoolRead(d *schema.ResourceData, meta interface{}
 		d.Set("preferred_app_group_type", string(props.PreferredAppGroupType))
 		d.Set("type", string(props.HostPoolType))
 		d.Set("validate_environment", props.ValidationEnvironment)
+		d.Set("custom_rdp_properties", props.CustomRdpProperty)
 
 		if err := d.Set("registration_info", flattenVirtualDesktopHostPoolRegistrationInfo(props.RegistrationInfo)); err != nil {
 			return fmt.Errorf("setting `registration_info`: %+v", err)

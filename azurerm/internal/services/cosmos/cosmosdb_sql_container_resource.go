@@ -11,21 +11,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/tf"
-	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/validate"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/clients"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/cosmos/common"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/cosmos/migration"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/cosmos/parse"
+	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/cosmos/validate"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/timeouts"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
 )
 
-func resourceArmCosmosDbSQLContainer() *schema.Resource {
+func resourceCosmosDbSQLContainer() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceArmCosmosDbSQLContainerCreate,
-		Read:   resourceArmCosmosDbSQLContainerRead,
-		Update: resourceArmCosmosDbSQLContainerUpdate,
-		Delete: resourceArmCosmosDbSQLContainerDelete,
+		Create: resourceCosmosDbSQLContainerCreate,
+		Read:   resourceCosmosDbSQLContainerRead,
+		Update: resourceCosmosDbSQLContainerUpdate,
+		Delete: resourceCosmosDbSQLContainerDelete,
 
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -78,6 +78,13 @@ func resourceArmCosmosDbSQLContainer() *schema.Resource {
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 
+			"partition_key_version": {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.IntBetween(1, 2),
+			},
+
 			"throughput": {
 				Type:         schema.TypeInt,
 				Optional:     true,
@@ -117,7 +124,7 @@ func resourceArmCosmosDbSQLContainer() *schema.Resource {
 	}
 }
 
-func resourceArmCosmosDbSQLContainerCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceCosmosDbSQLContainerCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Cosmos.SqlClient
 	ctx, cancel := timeouts.ForCreate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -162,6 +169,10 @@ func resourceArmCosmosDbSQLContainerCreate(d *schema.ResourceData, meta interfac
 			Paths: &[]string{partitionkeypaths},
 			Kind:  documentdb.PartitionKindHash,
 		}
+
+		if partitionKeyVersion, ok := d.GetOk("partition_key_version"); ok {
+			db.SQLContainerCreateUpdateProperties.Resource.PartitionKey.Version = utils.Int32(int32(partitionKeyVersion.(int)))
+		}
 	}
 
 	if keys := expandCosmosSQLContainerUniqueKeys(d.Get("unique_key").(*schema.Set)); keys != nil {
@@ -204,10 +215,10 @@ func resourceArmCosmosDbSQLContainerCreate(d *schema.ResourceData, meta interfac
 
 	d.SetId(*resp.ID)
 
-	return resourceArmCosmosDbSQLContainerRead(d, meta)
+	return resourceCosmosDbSQLContainerRead(d, meta)
 }
 
-func resourceArmCosmosDbSQLContainerUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceCosmosDbSQLContainerUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Cosmos.SqlClient
 	ctx, cancel := timeouts.ForCreate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -245,6 +256,10 @@ func resourceArmCosmosDbSQLContainerUpdate(d *schema.ResourceData, meta interfac
 			Paths: &[]string{partitionkeypaths},
 			Kind:  documentdb.PartitionKindHash,
 		}
+
+		if partitionKeyVersion, ok := d.GetOk("partition_key_version"); ok {
+			db.SQLContainerCreateUpdateProperties.Resource.PartitionKey.Version = utils.Int32(int32(partitionKeyVersion.(int)))
+		}
 	}
 
 	if keys := expandCosmosSQLContainerUniqueKeys(d.Get("unique_key").(*schema.Set)); keys != nil {
@@ -281,10 +296,10 @@ func resourceArmCosmosDbSQLContainerUpdate(d *schema.ResourceData, meta interfac
 		}
 	}
 
-	return resourceArmCosmosDbSQLContainerRead(d, meta)
+	return resourceCosmosDbSQLContainerRead(d, meta)
 }
 
-func resourceArmCosmosDbSQLContainerRead(d *schema.ResourceData, meta interface{}) error {
+func resourceCosmosDbSQLContainerRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Cosmos.SqlClient
 	accountClient := meta.(*clients.Client).Cosmos.DatabaseClient
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
@@ -321,6 +336,9 @@ func resourceArmCosmosDbSQLContainerRead(d *schema.ResourceData, meta interface{
 						d.Set("partition_key_path", (*paths)[0])
 					}
 				}
+				if version := pk.Version; version != nil {
+					d.Set("partition_key_version", version)
+				}
 			}
 
 			if ukp := res.UniqueKeyPolicy; ukp != nil {
@@ -348,33 +366,25 @@ func resourceArmCosmosDbSQLContainerRead(d *schema.ResourceData, meta interface{
 		return fmt.Errorf("cosmosDB Account %q (Resource Group %q) ID is empty or nil", id.DatabaseAccountName, id.ResourceGroup)
 	}
 
-	if props := accResp.DatabaseAccountGetProperties; props != nil && props.Capabilities != nil {
-		serverless := false
-		for _, v := range *props.Capabilities {
-			if *v.Name == "EnableServerless" {
-				serverless = true
-			}
-		}
-
-		if !serverless {
-			throughputResp, err := client.GetSQLContainerThroughput(ctx, id.ResourceGroup, id.DatabaseAccountName, id.SqlDatabaseName, id.ContainerName)
-			if err != nil {
-				if !utils.ResponseWasNotFound(throughputResp.Response) {
-					return fmt.Errorf("Error reading Throughput on Cosmos SQL Container %s (Account: %q, Database: %q) ID: %v", id.ContainerName, id.DatabaseAccountName, id.SqlDatabaseName, err)
-				} else {
-					d.Set("throughput", nil)
-					d.Set("autoscale_settings", nil)
-				}
+	// if the cosmos account is serverless calling the get throughput api would yield an error
+	if !isServerlessCapacityMode(accResp) {
+		throughputResp, err := client.GetSQLContainerThroughput(ctx, id.ResourceGroup, id.DatabaseAccountName, id.SqlDatabaseName, id.ContainerName)
+		if err != nil {
+			if !utils.ResponseWasNotFound(throughputResp.Response) {
+				return fmt.Errorf("Error reading Throughput on Cosmos SQL Container %s (Account: %q, Database: %q) ID: %v", id.ContainerName, id.DatabaseAccountName, id.SqlDatabaseName, err)
 			} else {
-				common.SetResourceDataThroughputFromResponse(throughputResp, d)
+				d.Set("throughput", nil)
+				d.Set("autoscale_settings", nil)
 			}
+		} else {
+			common.SetResourceDataThroughputFromResponse(throughputResp, d)
 		}
 	}
 
 	return nil
 }
 
-func resourceArmCosmosDbSQLContainerDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceCosmosDbSQLContainerDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Cosmos.SqlClient
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()

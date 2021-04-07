@@ -19,12 +19,12 @@ import (
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
 )
 
-func resourceArmDnsTxtRecord() *schema.Resource {
+func resourceDnsTxtRecord() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceArmDnsTxtRecordCreateUpdate,
-		Read:   resourceArmDnsTxtRecordRead,
-		Update: resourceArmDnsTxtRecordCreateUpdate,
-		Delete: resourceArmDnsTxtRecordDelete,
+		Create: resourceDnsTxtRecordCreateUpdate,
+		Read:   resourceDnsTxtRecordRead,
+		Update: resourceDnsTxtRecordCreateUpdate,
+		Delete: resourceDnsTxtRecordDelete,
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(30 * time.Minute),
@@ -79,14 +79,17 @@ func resourceArmDnsTxtRecord() *schema.Resource {
 	}
 }
 
-func resourceArmDnsTxtRecordCreateUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceDnsTxtRecordCreateUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Dns.RecordSetsClient
 	ctx, cancel := timeouts.ForCreateUpdate(meta.(*clients.Client).StopContext, d)
+	subscriptionId := meta.(*clients.Client).Account.SubscriptionId
 	defer cancel()
 
 	name := d.Get("name").(string)
 	resGroup := d.Get("resource_group_name").(string)
 	zoneName := d.Get("zone_name").(string)
+
+	resourceId := parse.NewTxtRecordID(subscriptionId, resGroup, zoneName, name)
 
 	if d.IsNewResource() {
 		existing, err := client.Get(ctx, resGroup, zoneName, name, dns.TXT)
@@ -119,21 +122,12 @@ func resourceArmDnsTxtRecordCreateUpdate(d *schema.ResourceData, meta interface{
 		return fmt.Errorf("Error creating/updating DNS TXT Record %q (Zone %q / Resource Group %q): %s", name, zoneName, resGroup, err)
 	}
 
-	resp, err := client.Get(ctx, resGroup, zoneName, name, dns.TXT)
-	if err != nil {
-		return fmt.Errorf("Error retrieving DNS TXT Record %q (Zone %q / Resource Group %q): %s", name, zoneName, resGroup, err)
-	}
+	d.SetId(resourceId.ID())
 
-	if resp.ID == nil {
-		return fmt.Errorf("Cannot read DNS TXT Record %s (resource group %s) ID", name, resGroup)
-	}
-
-	d.SetId(*resp.ID)
-
-	return resourceArmDnsTxtRecordRead(d, meta)
+	return resourceDnsTxtRecordRead(d, meta)
 }
 
-func resourceArmDnsTxtRecordRead(d *schema.ResourceData, meta interface{}) error {
+func resourceDnsTxtRecordRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Dns.RecordSetsClient
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -164,7 +158,7 @@ func resourceArmDnsTxtRecordRead(d *schema.ResourceData, meta interface{}) error
 	return tags.FlattenAndSet(d, resp.Metadata)
 }
 
-func resourceArmDnsTxtRecordDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceDnsTxtRecordDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Dns.RecordSetsClient
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()

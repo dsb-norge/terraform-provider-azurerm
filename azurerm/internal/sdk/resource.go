@@ -66,7 +66,18 @@ type Resource interface {
 // TODO: ResourceWithStateMigration
 // TODO: a generic state migration for updating ID's
 
+type ResourceWithCustomImporter interface {
+	Resource
+
+	// CustomImporter returns a ResourceRunFunc which allows overriding the import
+	CustomImporter() ResourceRunFunc
+}
+
 // ResourceWithUpdate is an optional interface
+//
+// Notably the Arguments for Resources implementing this interface
+// cannot be entirely ForceNew - else this interface implementation
+// is superfluous.
 type ResourceWithUpdate interface {
 	Resource
 
@@ -74,6 +85,18 @@ type ResourceWithUpdate interface {
 	// NOTE: the shim layer will automatically call the Read function once this has been created
 	// so it's no longer necessary to call this explicitly
 	Update() ResourceFunc
+}
+
+// ResourceWithDeprecation is an optional interface
+//
+// Resources implementing this interface will be marked as Deprecated
+// and output the DeprecationMessage during Terraform operations.
+type ResourceWithDeprecation interface {
+	Resource
+
+	// DeprecationMessage returns the Deprecation message for this resource
+	// NOTE: this must return a non-empty string
+	DeprecationMessage() string
 }
 
 // ResourceRunFunc is the function which can be run
@@ -108,7 +131,8 @@ type ResourceMetaData struct {
 }
 
 // MarkAsGone marks this resource as removed in the Remote API, so this is no longer available
-func (rmd ResourceMetaData) MarkAsGone() error {
+func (rmd ResourceMetaData) MarkAsGone(idFormatter resourceid.Formatter) error {
+	rmd.Logger.Infof("[DEBUG] %s was not found - removing from state", idFormatter)
 	rmd.ResourceData.SetId("")
 	return nil
 }
@@ -116,6 +140,6 @@ func (rmd ResourceMetaData) MarkAsGone() error {
 // ResourceRequiresImport returns an error saying that this resource must be imported with instructions
 // on how to do this (namely, using `terraform import`
 func (rmd ResourceMetaData) ResourceRequiresImport(resourceName string, idFormatter resourceid.Formatter) error {
-	resourceId := idFormatter.ID("") // TODO: remove the dependency on ID in the interface
+	resourceId := idFormatter.ID()
 	return tf.ImportAsExistsError(resourceName, resourceId)
 }

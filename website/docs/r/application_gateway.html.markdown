@@ -15,7 +15,7 @@ Manages an Application Gateway.
 ```hcl
 resource "azurerm_resource_group" "example" {
   name     = "example-resources"
-  location = "West US"
+  location = "West Europe"
 }
 
 resource "azurerm_virtual_network" "example" {
@@ -465,7 +465,7 @@ A `waf_configuration` block supports the following:
 
 * `disabled_rule_group` - (Optional) one or more `disabled_rule_group` blocks as defined below.
 
-* `file_upload_limit_mb` - (Optional) The File Upload Limit in MB. Accepted values are in the range `1`MB to `500`MB. Defaults to `100`MB.
+* `file_upload_limit_mb` - (Optional) The File Upload Limit in MB. Accepted values are in the range `1`MB to `750`MB for the `WAF_v2` SKU, and `1`MB to `500`MB for all other SKUs. Defaults to `100`MB.
 
 * `request_body_check` - (Optional) Is Request Body Inspection enabled?  Defaults to `true`.
 
@@ -545,6 +545,7 @@ A `rewrite_rule` block supports the following:
 
 * `response_header_configuration` - (Optional) One or more `response_header_configuration` blocks as defined above.
 
+* `url` - (Optional) One `url` block as defined above
 ---
 
 A `condition` block supports the following:
@@ -572,6 +573,18 @@ A `response_header_configuration` block supports the following:
 * `header_name` - (Required) Header name of the header configuration.
 
 * `header_value` - (Required) Header value of the header configuration. To delete a response header set this property to an empty string.
+
+---
+
+A `url` block supports the following:
+
+* `path` - (Optional) The URL path to rewrite.
+
+* `query_string` - (Optional) The query string to rewrite.
+
+~> **Note:** One or both of `path` and `query_string` must be specified.
+
+* `reroute` - (Optional) Whether the URL path map should be reevaluated after this rewrite has been applied. [More info on rewrite configutation](https://docs.microsoft.com/en-us/azure/application-gateway/rewrite-http-headers-url#rewrite-configuration)
 
 ## Attributes Reference
 

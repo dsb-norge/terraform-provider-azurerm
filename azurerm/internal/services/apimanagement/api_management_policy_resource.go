@@ -15,12 +15,12 @@ import (
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
 )
 
-func resourceArmApiManagementPolicy() *schema.Resource {
+func resourceApiManagementPolicy() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceArmApiManagementPolicyCreateUpdate,
-		Read:   resourceArmApiManagementPolicyRead,
-		Update: resourceArmApiManagementPolicyCreateUpdate,
-		Delete: resourceArmApiManagementPolicyDelete,
+		Create: resourceApiManagementPolicyCreateUpdate,
+		Read:   resourceApiManagementPolicyRead,
+		Update: resourceApiManagementPolicyCreateUpdate,
+		Delete: resourceApiManagementPolicyDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -59,7 +59,7 @@ func resourceArmApiManagementPolicy() *schema.Resource {
 	}
 }
 
-func resourceArmApiManagementPolicyCreateUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceApiManagementPolicyCreateUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).ApiManagement.PolicyClient
 	ctx, cancel := timeouts.ForCreateUpdate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -119,16 +119,16 @@ func resourceArmApiManagementPolicyCreateUpdate(d *schema.ResourceData, meta int
 	}
 	d.SetId(*resp.ID)
 
-	return resourceArmApiManagementPolicyRead(d, meta)
+	return resourceApiManagementPolicyRead(d, meta)
 }
 
-func resourceArmApiManagementPolicyRead(d *schema.ResourceData, meta interface{}) error {
+func resourceApiManagementPolicyRead(d *schema.ResourceData, meta interface{}) error {
 	serviceClient := meta.(*clients.Client).ApiManagement.ServiceClient
 	client := meta.(*clients.Client).ApiManagement.PolicyClient
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
-	id, err := parse.ApiManagementPolicyID(d.Id())
+	id, err := parse.PolicyID(d.Id())
 	if err != nil {
 		return err
 	}
@@ -173,12 +173,12 @@ func resourceArmApiManagementPolicyRead(d *schema.ResourceData, meta interface{}
 	return nil
 }
 
-func resourceArmApiManagementPolicyDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceApiManagementPolicyDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).ApiManagement.PolicyClient
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()
 
-	id, err := parse.ApiManagementPolicyID(d.Id())
+	id, err := parse.PolicyID(d.Id())
 	if err != nil {
 		return err
 	}

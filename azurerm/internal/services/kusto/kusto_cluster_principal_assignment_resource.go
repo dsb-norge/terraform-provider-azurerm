@@ -6,22 +6,23 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/kusto/mgmt/2020-02-15/kusto"
+	"github.com/Azure/azure-sdk-for-go/services/kusto/mgmt/2020-09-18/kusto"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/azure"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/helpers/tf"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/clients"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/kusto/parse"
+	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/services/kusto/validate"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/internal/timeouts"
 	"github.com/terraform-providers/terraform-provider-azurerm/azurerm/utils"
 )
 
-func resourceArmKustoClusterPrincipalAssignment() *schema.Resource {
+func resourceKustoClusterPrincipalAssignment() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceArmKustoClusterPrincipalAssignmentCreateUpdate,
-		Read:   resourceArmKustoClusterPrincipalAssignmentRead,
-		Delete: resourceArmKustoClusterPrincipalAssignmentDelete,
+		Create: resourceKustoClusterPrincipalAssignmentCreateUpdate,
+		Read:   resourceKustoClusterPrincipalAssignmentRead,
+		Delete: resourceKustoClusterPrincipalAssignmentDelete,
 
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -41,7 +42,7 @@ func resourceArmKustoClusterPrincipalAssignment() *schema.Resource {
 				Type:         schema.TypeString,
 				Required:     true,
 				ForceNew:     true,
-				ValidateFunc: validateAzureRMKustoClusterName,
+				ValidateFunc: validate.ClusterName,
 			},
 
 			"name": {
@@ -99,7 +100,7 @@ func resourceArmKustoClusterPrincipalAssignment() *schema.Resource {
 	}
 }
 
-func resourceArmKustoClusterPrincipalAssignmentCreateUpdate(d *schema.ResourceData, meta interface{}) error {
+func resourceKustoClusterPrincipalAssignmentCreateUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Kusto.ClusterPrincipalAssignmentsClient
 	ctx, cancel := timeouts.ForCreateUpdate(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -157,10 +158,10 @@ func resourceArmKustoClusterPrincipalAssignmentCreateUpdate(d *schema.ResourceDa
 
 	d.SetId(*resp.ID)
 
-	return resourceArmKustoClusterPrincipalAssignmentRead(d, meta)
+	return resourceKustoClusterPrincipalAssignmentRead(d, meta)
 }
 
-func resourceArmKustoClusterPrincipalAssignmentRead(d *schema.ResourceData, meta interface{}) error {
+func resourceKustoClusterPrincipalAssignmentRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Kusto.ClusterPrincipalAssignmentsClient
 	ctx, cancel := timeouts.ForRead(meta.(*clients.Client).StopContext, d)
 	defer cancel()
@@ -216,7 +217,7 @@ func resourceArmKustoClusterPrincipalAssignmentRead(d *schema.ResourceData, meta
 	return nil
 }
 
-func resourceArmKustoClusterPrincipalAssignmentDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceKustoClusterPrincipalAssignmentDelete(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*clients.Client).Kusto.ClusterPrincipalAssignmentsClient
 	ctx, cancel := timeouts.ForDelete(meta.(*clients.Client).StopContext, d)
 	defer cancel()
